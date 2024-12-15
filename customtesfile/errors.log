@@ -1,0 +1,6 @@
+
+Errors encountered during assembly:
+Error at line 2: Invalid label name '10g5'
+Error at line 4: Duplicate label definition 'l1'
+
+Warnings
