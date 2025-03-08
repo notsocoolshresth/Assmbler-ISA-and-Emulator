@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <set>
 #include <map>
-#include <vector>
+#include <vector>   
 #include <unordered_map>
 #include <unordered_set>
 #include <cstdlib>
@@ -18,8 +18,31 @@
 #include <utility>
 #include <exception>
 #include <stdexcept>
-using namespace std;
 
+
+
+using namespace std;
+int binaryToInt(const std::string &binaryStr)
+{
+    int result = 0;
+    int length = binaryStr.length();
+
+    for (int i = 0; i < length; ++i)
+    {
+        // Check if each character is '1' or '0'
+        if (binaryStr[i] == '1')
+        {
+            result += std::pow(2, length - i - 1);
+        }
+        else if (binaryStr[i] != '0')
+        {
+            throw std::invalid_argument("Invalid binary string");
+        }
+    }
+    return result;
+}
+
+// Removes leading and trailing whitespace from a string
 string remove_whitespace(const string &s)
 {
     auto left = find_if_not(s.begin(), s.end(), ::isspace);
@@ -27,157 +50,82 @@ string remove_whitespace(const string &s)
     return (left < right) ? string(left, right) : "";
 }
 
+int hexToInt(const std::string &hexStr)
+{
+    int result;
+    std::stringstream ss;
+
+    // Set the stream to interpret the number as hexadecimal
+    ss << std::hex << hexStr;
+    ss >> result;
+
+    return result;
+}
+// Strips comments and trims whitespace from code line
+
 string remove_comments(const string &line)
 {
     size_t comment_start = line.find(';');
     string code_part = (comment_start != string::npos) ? line.substr(0, comment_start) : line;
     return remove_whitespace(code_part);
 }
+
+// Checks if the file has a .asm extension
 bool isAsmFile(const string &filename)
 {
     string extension = ".asm";
     return (filename.size() >= extension.size() && filename.compare(filename.size() - extension.size(), extension.size(), extension) == 0);
 }
 
-bool verify_labels(string &label)
+// Validates the starting character of a label
+bool check_init(char c)
 {
-    if (label.empty() || !(isalpha(label[0]) || label[0] == '_'))
+    return isalpha(c) || c == '_';
+}
+
+// Validates subsequent characters in a label
+bool check_else(char c)
+{
+    return isalnum(c) || c == '_';
+}
+
+// Checks if the label is valid
+bool verify_label(string &label)
+{
+    if (label.empty() || !check_init(label[0]))
         return false;
 
     for (char ch : label)
     {
-        if (!isalnum(ch) && ch != '_')
-            return false;
-    }
-    return true;
-}
-bool is_valid_hex(string hexStr)
-{
-    if (hexStr.size() < 3)
-    {
-        return false;
-    }
-    if (hexStr.substr(0, 2) == "0x" || hexStr.substr(0, 2) == "0X")
-    {
-        hexStr = hexStr.substr(2);
-    }
-    else
-        return false;
-    for (char ch : hexStr)
-    {
-        if (!isxdigit(ch))
+        if (!check_else(ch))
             return false;
     }
     return true;
 }
 
-bool valid_octal(string octStr)
+// Checks if a string is a valid integer or hexadecimal number
+bool isValidNumber(const string &operand)
 {
-    if (octStr.size() < 2)
-    {
+    if (operand.empty())
         return false;
-    }
-    if (octStr.substr(0, 1) == "0" || octStr.substr(0, 1) == "0")
-    {
-        octStr = octStr.substr(1);
-    }
-    else
-        return false;
-    for (char ch : octStr)
-    {
-        if (ch < '0' || ch > '7')
-            return false;
-    }
-    return true;
-}
-bool valid_decimal(string decStr)
-{
-    if (decStr[0] == '0' && decStr.size() > 1)
-    {
-        // cout<<"w";
-        return false;
-    }
 
-    if (decStr[0] == '-' || decStr[0] == '+')
+    size_t pos = (operand[0] == '-' || operand[0] == '+') ? 1 : 0;
+    bool isHex = (operand.size() > pos + 1 && operand[pos] == '0' && (operand[pos + 1] == 'x' || operand[pos + 1] == 'X'));
+
+    if (isHex)
+        pos += 2;
+
+    for (size_t i = pos; i < operand.size(); i++)
     {
-        decStr = decStr.substr(1);
-        // cout<<"hwe";
-        if (decStr[0] == '0')
-            return false;
-    }
-    for (char ch : decStr)
-    {
-        if (!isdigit(ch))
+        if ((isHex && !isxdigit(operand[i])) || (!isHex && !isdigit(operand[i])))
         {
-
             return false;
         }
     }
     return true;
 }
-pair<bool, string> valid_number(string number)
-{
-    if (number.empty())
-    {
-        return {false, ""};
-    }
-    if (is_valid_hex(number))
-    {
-        return {true, "hex"};
-    }
-    if (valid_decimal(number))
-    {
-        return {true, "dec"};
-    }
-    if (valid_octal(number))
-    {
-        return {true, "oct"};
-    }
-    return {false, ""};
-}
 
-pair<int, bool> number_extract(string num)
-{
-    pair<bool, string> v = valid_number(num);
-    if (v.first)
-    {
-        if (v.second == "hex")
-        {
-            if (num.substr(0, 2) == "0x" || num.substr(0, 2) == "0X")
-            {
-                num = num.substr(2);
-            }
-            return {stoi(num, nullptr, 16), true};
-        }
-        if (v.second == "dec")
-        {
-            int numi;
-            if (num[0] == '-')
-            {
-                num = num.substr(1);
-                numi = -stoi(num, nullptr, 10);
-            }
-            else if (num[0] == '+')
-            {
-                num = num.substr(1);
-                numi = stoi(num, nullptr, 10);
-            }
-            else
-            {
-                numi = stoi(num, nullptr, 10);
-            }
-            return {numi, true};
-        }
-        if (v.second == "oct")
-        {
-            num = num.substr(1);
-            return {stoi(num, nullptr, 8), true};
-        }
-    }
-    return {-1, false};
-}
-
-int instruction_table(string s)
+int instruction_table(std::string s)
 {
     std::map<std::string, int> instruction_table;
     instruction_table["data"] = 0;
@@ -206,6 +154,7 @@ int instruction_table(string s)
     }
     return -1;
 }
+
 string int_to_hex(int a, int width = 8)
 {
     if (a == -1)
@@ -214,433 +163,475 @@ string int_to_hex(int a, int width = 8)
     ss << uppercase << hex << setw(width) << setfill('0') << (a & 0xFF); // Mask to 8 bits
     return ss.str();
 }
-string bin_to_hex(const string &s)
+
+std::string binary_to_hex(const std::string &binary)
 {
-    map<string, char> bin_to_hex;
-    bin_to_hex["0000"] = '0';
-    bin_to_hex["0001"] = '1';
-    bin_to_hex["0010"] = '2';
-    bin_to_hex["0011"] = '3';
-    bin_to_hex["0100"] = '4';
-    bin_to_hex["0101"] = '5';
-    bin_to_hex["0110"] = '6';
-    bin_to_hex["0111"] = '7';
-    bin_to_hex["1000"] = '8';
-    bin_to_hex["1001"] = '9';
-    bin_to_hex["1010"] = 'A';
-    bin_to_hex["1011"] = 'B';
-    bin_to_hex["1100"] = 'C';
-    bin_to_hex["1101"] = 'D';
-    bin_to_hex["1110"] = 'E';
-    bin_to_hex["1111"] = 'F';
-    string hex;
-    for (size_t i = 0; i < s.size(); i += 4)
+    if (binary == "-1")
+        return "Error";
+    static const std::unordered_map<std::string, char> bin_to_hex = {
+        {"0000", '0'}, {"0001", '1'}, {"0010", '2'}, {"0011", '3'}, {"0100", '4'}, {"0101", '5'}, {"0110", '6'}, {"0111", '7'}, {"1000", '8'}, {"1001", '9'}, {"1010", 'A'}, {"1011", 'B'}, {"1100", 'C'}, {"1101", 'D'}, {"1110", 'E'}, {"1111", 'F'}};
+
+    std::string hex;
+    for (size_t i = 0; i < binary.size(); i += 4)
     {
-        string chunk = s.substr(i, 4);
-        hex += bin_to_hex[chunk];
+        // Extract a 4-bit chunk
+        std::string chunk = binary.substr(i, 4);
+
+        // Map the 4-bit chunk to its hexadecimal equivalent
+        hex += bin_to_hex.at(chunk);
     }
+
     return hex;
 }
-int bin_to_int(const string &s)
-{
-    int num = 0;
-    for (int i = 0; i < s.size(); i++)
-    {
-        num += (s[i] - '0') * pow(2, s.size() - i - 1);
-    }
-    return num;
-}
-string warning_table(int i)
-{
-    map<int, string> warning_table;
-    warning_table[1] = "Unused label";
 
-    return warning_table[i];
-}
-string error_table(int i)
+void write_to_file(ofstream &file, const string &content)
 {
-    map<int, string> error_table;
-    error_table[0] = "Invalid instruction";
-    error_table[1] = "Invalid operand";
-    error_table[2] = "Invalid label";
-    error_table[3] = "Duplicate label";
-    error_table[4] = "Invalid number";
-    error_table[5] = "Extra on line";
-    error_table[6] = "Not enough on line";
-    return error_table[i];
-}
-int total_words(const string s)
-{
-    istringstream iss(s);
-    string word;
-    int count = 0;
-    while (iss >> word)
+    file << content;
+    if (!file)
     {
-        count++;
+        throw runtime_error("Failed to write to file");
     }
-    return count;
 }
-bool require_operand(const string &token)
+std::string int_to_bin(int num)
+{
+    if (num == -1)
+        return "Error";
+    return std::bitset<8>(num).to_string();
+}
+struct error
+{
+
+    int iber;
+    string message;
+    error(int line, string msg) : iber(line), message(msg) {}
+};
+
+struct warning
+{
+    int iber;
+    string message;
+    warning(int line, string msg) : iber(line), message(msg) {}
+};
+
+bool require_oper(const string &token)
 {
     return (token != "add" && token != "sub" && token != "shl" && token != "shr" && token != "a2sp" && token != "sp2a" && token != "return" && token != "HALT");
 }
-bool require_number(const string &token)
+bool require_num(const string &token)
 {
-    return (token == "data" || token == "ldc" || token == "adc" || token == "SET" || token == "adj");
-}
-bool require_label(const string &token)
-{
-    return (token == "br" || token == "brz" || token == "brlz" || token == "call" || token == "ldl" || token == "stl" || token == "ldnl" || token == "stnl");
-}
-bool require_labelornumber(const string &token)
-{
-    return require_label(token) || require_number(token);
+    return (token != "add" && token != "sub" && token != "shl" && token != "shr" && token != "a2sp" && token != "sp2a" && token != "return" && token != "HALT" && token != "brz" && token != "brlz" && token != "br" && token != "call");
 }
 
-vector<vector<string>> split_lines(const string &s)
+void insert_error(vector<error> &error_list, int line_num, const string &message)
 {
-    vector<vector<string>> lines;
-    istringstream iss(s);
-    string line;
-    while (getline(iss, line))
-    {
-        vector<string> words;
-        if (line.find(':') != string::npos)
-        {
-            string label = line.substr(0, line.find(':'));
-            words.push_back(label);
-            words.push_back(":");
-            line = line.substr(line.find(':') + 1);
-        }
-        istringstream line_stream(line);
-        string word;
-        while (line_stream >> word)
-        {
-            words.push_back(word);
-        }
-        lines.push_back(words);
-    }
-    return lines;
+
+    error_list.push_back(error(line_num, message));
 }
 
-bool perform_first_pass(vector<vector<string>> tokenized_words, map<string, int> &loopup_table, vector<string> &warnings, set<string> &unresolved_labels, vector<string> &error)
+void perform_first_pass(vector<string> &lines, map<string, int> &symbols, vector<error> &error_list, vector<warning> &warning_list, vector<pair<int, string>> &forward_refs)
 {
     int program_counter = 0;
     bool halt_found = false;
-    int line_no = 0;
-    for (auto line : tokenized_words)
+    set<string> referenced_labels;
+
+    for (int line_num = 0; line_num < lines.size(); line_num++)
     {
-        for(auto i:line)
-        {
-            cout<<i<<" ";
-        }
-        cout<<endl;
-        cout<<line.size()<<endl;
-        line_no++;
-        if (line.empty())
-        {
-            continue; // Skip empty lines
-        }
+        istringstream line_stream(lines[line_num]);
+        string word;
 
-        if (line.size() > 4)
-        {
-            error.push_back(error_table(5) + " on program counter number " + to_string(line_no)); // Too many tokens in the line
+        // Get the first word in the line
+        line_stream >> word;
+        if (word.empty())
             continue;
-        }
 
-        bool is_label = false;
-
-        // Check if the line starts with a label
-        if (line.size() > 1 &&line[1] == ":")
+        // Process labels
+        if (word.back() == ':')
         {
-            is_label = true;
-            string label = line[0];
+            string label_name = word.substr(0, word.length() - 1);
 
-            // Validate and add label to the lookup table
-            if (loopup_table.find(label) != loopup_table.end())
+            // Validate and store label
+            if (!verify_label(label_name))
             {
-                error.push_back(error_table(3) + " on program counter number " + to_string(line_no)); // Duplicate label
+                insert_error(error_list, line_num + 1, "Invalid label name '" + label_name + "'");
                 continue;
             }
-            if (!verify_labels(label))
+
+            if (symbols.find(label_name) != symbols.end())
             {
-                error.push_back(error_table(2) + " on program counter number " + to_string(line_no)); // Invalid label
+                insert_error(error_list, line_num + 1, "Duplicate label definition '" + label_name + "'");
                 continue;
             }
-            loopup_table[label] = program_counter;
 
-            // Erase the label part from the line
-            if (line.size() >= 2)
+            // Store the current program counter value for the label
+            symbols[label_name] = program_counter;
+
+            // Check for inline instruction
+            if (!(line_stream >> word))
             {
-                line.erase(line.begin(), line.begin() + 2);
+                continue; // No instruction after label
             }
         }
 
-        // Skip if the line is now empty
-        if (line.empty())
+        // Process inline labels (label:instruction format)
+        size_t colon_pos = word.find(':');
+        if (colon_pos != string::npos)
         {
+            string label_name = word.substr(0, colon_pos);
+            string instruction = word.substr(colon_pos + 1);
+
+            // Validate and store label
+            if (!verify_label(label_name))
+            {
+                insert_error(error_list, line_num + 1, "Invalid label name '" + label_name + "'");
+                continue;
+            }
+
+            if (symbols.find(label_name) != symbols.end())
+            {
+                insert_error(error_list, line_num + 1, "Duplicate label definition '" + label_name + "'");
+                continue;
+            }
+
+            symbols[label_name] = program_counter;
+
+            if (instruction.empty())
+            {
+                if (!(line_stream >> word))
+                    continue;
+            }
+            else
+            {
+                word = instruction;
+            }
+        }
+
+        // Only increment program counter for actual instructions (not empty lines or pure labels)
+        if (instruction_table(word) != -1 && word != "SET")
+        {
+            program_counter++;
+        }
+    }
+}
+void second_pass(const vector<string> &lines_to_process, const vector<string> &original_lines, const map<string, int> &labels, vector<error> &error_log, vector<warning> &warning_log, ofstream &listing_out, vector<pair<int, string>> unresolved_labels, ofstream &binary_out)
+{
+    int program_counter = 0;
+    int code_index = 0;
+    vector<string> binary_instructions;
+
+    if (!listing_out.is_open() || !binary_out.is_open())
+    {
+        insert_error(error_log, -1, "Failed to open output files");
+        return;
+    }
+    if (!error_log.empty())
+        return;
+
+    // Ensure unresolved labels can be resolved
+    for (const auto &label_ref : unresolved_labels)
+    {
+        if (labels.find(label_ref.second) == labels.end())
+        {
+            insert_error(error_log, label_ref.first, "Undefined label '" + label_ref.second + "'");
+            return;
+        }
+    }
+    write_to_file(listing_out, "\nSymbol Table:\n");
+    for (const auto &label : labels)
+    {
+        write_to_file(listing_out, "Label '" + label.first + "': 0x" + int_to_hex(label.second, 8) + "\n");
+    }
+    write_to_file(listing_out, "\n");
+
+    write_to_file(listing_out, "PC (Hex) Machine Code Source Line\n");
+    write_to_file(listing_out, "-------- ------------ ------------\n");
+
+    for (size_t i = 0; i < original_lines.size(); ++i)
+    {
+        string line_without_comments = remove_comments(original_lines[i]);
+
+        // Handle empty lines
+        if (line_without_comments.empty())
+        {
+            write_to_file(listing_out, int_to_hex(program_counter, 8) + " N/A " + original_lines[i] + "\n");
             continue;
         }
 
-        // Parse instruction
-        string instruction = line[0];
-        if (line.size() > 2)
+        istringstream line_stream(line_without_comments);
+        string word;
+        line_stream >> word;
+
+        // Handle labels
+        if (word.back() == ':')
         {
-            error.push_back(error_table(5) + " on program counter number " + to_string(line_no));
-            program_counter++; // Extra tokens in the line
-            continue;
+            string label = word.substr(0, word.length() - 1);
+            if (!(line_stream >> word))
+            { // No instruction after label
+                write_to_file(listing_out, int_to_hex(program_counter, 8) + " N/A " + original_lines[i] + "\n");
+                continue;
+            }
         }
 
-        int opcode = instruction_table(instruction);
+        // Handle label:instruction format
+        size_t colon_pos = word.find(':');
+        if (colon_pos != string::npos)
+        {
+            string instruction_part = word.substr(colon_pos + 1);
+            if (!instruction_part.empty())
+            {
+                word = instruction_part;
+            }
+            else if (!(line_stream >> word))
+            {
+                write_to_file(listing_out, int_to_hex(program_counter, 8) + " N/A " + original_lines[i] + "\n");
+                continue;
+            }
+        }
+
+        // Get instruction opcode
+        int opcode = instruction_table(word);
         if (opcode == -1)
         {
-            error.push_back(error_table(0) + " on program counter number " + to_string(line_no));
-            program_counter++; // Invalid instruction
-            continue;
-        }
-        if (opcode == 19)
-        {
-            halt_found = true; // HALT instruction found
+            continue; // Invalid instruction, should have been caught in first pass
         }
 
-        // Check for operands
-        if (require_operand(instruction))
+        string operand;
+        line_stream >> operand;
+
+        try
         {
-            if (line.size() == 1)
-            { // ldc
-                error.push_back(error_table(1) + " on program counter number " + to_string(line_no));
-                program_counter++; // Missing operand
+            string machine_code;
+            // if (word == "data")
+            // {
+            //     // Handle data instruction
+            //     int value = (operand.substr(0, 2) == "0x" || operand.substr(0, 2) == "0X")
+            //                     ? stoi(operand.substr(2), nullptr, 16)
+            //                     : stoi(operand);
+            //     machine_code = bitset<32>(value).to_string();
+            // }
+            if (word == "data")
+            {
+                // Handle data instruction
+                int value = (operand.substr(0, 2) == "0x" || operand.substr(0, 2) == "0X")
+                                ? stoi(operand.substr(2), nullptr, 16)
+                                : stoi(operand);
+
+                // Convert the value to binary and prepend 8 '1's
+                string data_bits = bitset<24>(value).to_string(); // Remaining 24 bits for data
+                machine_code = data_bits+"00000000";            // First 8 bits are all 1's
+            }
+
+            else if (word == "SET")
+            {
+                write_to_file(listing_out, int_to_hex(program_counter, 8) + " N/A " + original_lines[i] + "\n");
                 continue;
             }
-            string operand = line[1];
-            if (require_label(instruction))
+            else
             {
-                if (loopup_table.find(operand) == loopup_table.end() && verify_labels(operand))
-                {
-                    unresolved_labels.insert(operand);
+                // Handle regular instructions
+                bitset<8> opcode_bits(opcode);
+                string opcode_str = opcode_bits.to_string();
 
-                    // Add unresolved label
+                if (require_oper(word))
+                {
+                    int value;
+                    // In the second_pass function, modify the branch calculation:
+                    if (labels.find(operand) != labels.end())
+                    {
+                        value = labels.at(operand);
+                        if (word == "br" || word == "brz" || word == "brlz" || word == "call")
+                        {
+                            // Calculate relative offset
+                            int target_address = value;
+                            int current_address = program_counter;
+                            value = target_address - (current_address );
+
+                            // Write debug info to listing file
+                            // write_to_file(listing_out, "\nDebug info for " + word + " " + operand + ":\n");
+                            // write_to_file(listing_out, "Target address: 0x" + int_to_hex(target_address, 8) + "\n");
+                            // write_to_file(listing_out, "Current address: 0x" + int_to_hex(current_address, 8) + "\n");
+                            // write_to_file(listing_out, "Calculated offset: 0x" + int_to_hex(value, 8) + "\n\n");
+
+                            // Handle negative values properly for 24-bit signed values
+                            if (value < 0)
+                            {
+                                // Convert negative value to 24-bit two's complement
+                                value = (value & 0x00FFFFFF);
+                            }
+                        }
+                    }
+
+                    else
+                    {
+                        value = (operand.substr(0, 2) == "0x" || operand.substr(0, 2) == "0X")
+                                    ? stoi(operand.substr(2), nullptr, 16)
+                                    : stoi(operand);
+                    }
+                    bitset<24> value_bits(value);
+                    machine_code = value_bits.to_string() + opcode_str;
                 }
                 else
                 {
-                    if (!verify_labels(operand))
-                    {
-                        error.push_back(error_table(2) + " on program counter number " + to_string(line_no));
-                        program_counter++;
-                        continue;
-                    }
+                    machine_code = string(24, '0') + opcode_str;
                 }
             }
 
-            else if (require_number(instruction))
-            {
-                pair<int, bool> num = number_extract(operand);
-                if (!num.second)
-                { // if not number not valid label then eroor
-                    // cout<<instruction<<" "<<operand<<"here"<<endl;
+            // Write machine code to files
+            string hex_code = binary_to_hex(machine_code);
+            write_to_file(listing_out, int_to_hex(program_counter, 8) + " " + hex_code + " " + original_lines[i] + "\n");
 
-                    error.push_back(error_table(1) + " on program counter number " + to_string(line_no));
-                    program_counter++;
-                    // Invalid number
-                    continue;
-                }
+            uint32_t binary_value = bitset<32>(machine_code).to_ulong();
+            binary_out.write(reinterpret_cast<const char *>(&binary_value), sizeof(binary_value));
+
+            // Increment program counter for all instructions except SET
+            if (word != "SET")
+            {
+                program_counter++;
             }
         }
-        else if (line.size() >= 2)
+        catch (const exception &e)
         {
-            error.push_back(error_table(5) + " on program counter number " + to_string(line_no));
-            program_counter++; // Extra tokens in the line
-            continue;
-        }
-        if (instruction != "SET")
-        {
-            program_counter++;
-        }
-        // Increment program counter
-    }
-
-    if (!halt_found)
-    {
-        warnings.push_back("HALT instruction not found");
-    }
-    for (const auto &label : unresolved_labels)
-    {
-        if (loopup_table.find(label) == loopup_table.end())
-        {
-            error.push_back("Undefined label: " + label);
+            insert_error(error_log, i + 1, string("Error processing instruction: ") + e.what()+" "+word);
+            return;
         }
     }
-    return true;
 }
-
-bool perform_second_pass(ofstream &listing_file, ofstream &binary_file, vector<vector<string>> tokenized_word, map<string, int> &lookup_table, vector<string> &warnings, set<string> &unresolved_labels, vector<string> &errors)
-{
-    int program_counter = 0;
-    // for (auto words : unresolved_labels)
-
-    // {
-    //     if (lookup_table.find(words) == lookup_table.end())
-    //     {
-    //         errors.push_back("Undefined label " + words);
-    //         return false;
-    //     }
-    // }
-    if (!listing_file.is_open() || !binary_file.is_open())
-    {
-        cerr << "Error: Unable to open output files for writing." << endl;
-        return -1;
-    }
-    if (!errors.empty())
-    {
-        return false;
-    }
-    listing_file << "PC --- Machine Code \n";
-    listing_file << "-------------------\n";
-    for (auto lines : tokenized_word)
-    {
-        // for (auto i : lines)
-        //     cout << i << " ";
-        // cout << endl;
-        if (lines.empty())
-        {
-            listing_file << int_to_hex(program_counter, 8) << " N/A " << endl;
-            continue;
-        }
-        if (lines.size()>1){
-        if (lines[1] == ":" && lines.size() == 2)
-        {
-            listing_file << int_to_hex(program_counter, 8) << " N/A ";
-
-            continue;
-        }
-        else if (lines[1] == ":" && lines.size() > 2)
-        {
-            lines.erase(lines.begin(), lines.begin() + 2);
-        }
-        }
-
-        string instruction = lines[0];
-        int opcode = instruction_table(instruction);
-        string machine_code;
-        cout << "Processing line: " << program_counter << endl;
-        cout << "Instruction: " << instruction << ", Opcode: " << opcode << endl;
-
-        string operand;
-        if (lines.size() == 1)
-        {
-            machine_code = bitset<32>(opcode).to_string();
-        }
-        else
-        {
-            operand = lines[1];
-            if (require_label(instruction))
-            {
-                int val;
-                if (instruction=="br" || instruction=="brz" || instruction=="brlz" || instruction=="call")  val=lookup_table[operand]-program_counter;
-                else  val = lookup_table[operand];
-                
-               
-                machine_code = bitset<24>(val).to_string() + bitset<8>(opcode).to_string();
-            }
-            else if (require_number(instruction))
-            {
-                pair<int, bool> num = number_extract(operand);
-                machine_code = bitset<24>(num.first).to_string() + bitset<8>(opcode).to_string();
-            }
-            // Add verbose logging before conversion
-            // cout << "Attempting to convert operand: [" << operand << "]" << endl;
-            // cout << "Operand length: " << operand.length() << endl;
-            // cout << "Operand content: ";
-            // for (char c : operand)
-            // {
-            //     cout << "'" << c << "'(" << (int)c << ") ";
-            // }
-            // cout << endl;
-            // cout << machine_code << endl;
-            // machine_code = bitset<24>(stoi(operand)).to_string() + bitset<8>(opcode).to_string();
-        }
-        listing_file << int_to_hex(program_counter, 8) << " " << bin_to_hex(machine_code) << " ";
-
-        listing_file << "\n";
-        uint32_t binary_data = bin_to_int(machine_code);
-        binary_file.write(reinterpret_cast<const char*>(&binary_data), sizeof(binary_data));
-        //binary_file << machine_code << endl;
-        if (instruction != "SET")
-        {
-            program_counter++;
-        }
-        if (instruction == "HALT")
-        {
-            //break;
-            // continue;
-        }
-    }
-    return true;
-}
-
+// Modify the error handling in the main function
 int main(int argc, char *argv[])
 {
+    // Initial argument and file validation
     if (argc != 2)
     {
-        cerr << "Usage: " << argv[0] << " <filename>" << endl;
+        cerr << "Please provide one .asm file to compile.\n";
         return 1;
     }
-    string filename = argv[1];
-    if (!isAsmFile(filename))
+
+    string asm_filename = argv[1];
+    if (!isAsmFile(asm_filename))
     {
-        cerr << "Error: Invalid file extension. Please provide a file with .asm extension." << endl;
+        cerr << "Error: Provided file does not have a .asm extension.\n";
         return 1;
     }
+
+    ifstream asm_input(asm_filename);
+    if (!asm_input)
+    {
+        cerr << "Error: Unable to open input file " << asm_filename << "\n";
+        return 1;
+    }
+
+    // Prepare output files
+    string base_filename = asm_filename.substr(0, asm_filename.find_last_of('.'));
+    ofstream log_output(base_filename + ".log");
+
+    // Validate log file is open
+    if (!log_output)
+    {
+        cerr << "Error: Unable to create log file " << base_filename << ".log\n";
+        return 1;
+    }
+
+    // Vector to collect all errors
+    vector<error> comprehensive_error_log;
+    vector<warning> warning_log;
+    map<string, int> label_lookup;
+    vector<pair<int, string>> unresolved_labels;
+
+    // Read and process input lines
+    vector<string> comments_collection, processed_lines, original_lines;
+    string current_line;
+    while (getline(asm_input, current_line))
+    {
+        original_lines.push_back(current_line);
+
+        size_t comment_start = current_line.find(';');
+        string line_content = current_line.substr(0, comment_start);
+        string comment = (comment_start != string::npos) ? current_line.substr(comment_start) : "";
+
+        line_content.erase(line_content.find_last_not_of(" \t") + 1);
+        if (!line_content.empty())
+        {
+            processed_lines.push_back(line_content);
+        }
+
+        comments_collection.push_back(comment);
+    }
+
+    // Prepare additional output files
+    ofstream listing_output, binary_output;
     
-    filebuf fb;
-    if (fb.open(filename, ios::in))
-    {
-        istream is(&fb);
-        string s;
+    try {
+        listing_output.open(base_filename + ".lst");
+        binary_output.open(base_filename + ".o", ios::binary);
 
-        for (string line; getline(is, line);)
+        // Validate output file creation
+        if (!listing_output)
         {
-            s += remove_comments(line) + "\n";
+            comprehensive_error_log.push_back(error(-1, "Unable to create listing file"));
+            throw runtime_error("Listing file creation failed");
         }
 
-        fb.close();
-        vector<string> warnings;
-        vector<string> errors;
-        set<string> unresolved_labels;
-        vector<string> lines_without_comment;
-        map<string, int> lookup_table;
-
-        vector<vector<string>> lines = split_lines(s);
-        for (auto &i : lines)
+        if (!binary_output)
         {
-            for (auto &j : i)
-                j = remove_whitespace(j);
+            comprehensive_error_log.push_back(error(-1, "Unable to create binary output file"));
+            throw runtime_error("Binary output file creation failed");
         }
-        
 
-        perform_first_pass(lines, lookup_table, warnings, unresolved_labels, errors);
-        
-        
+        // First pass
+        perform_first_pass(processed_lines, label_lookup, comprehensive_error_log, warning_log, unresolved_labels);
 
-        ofstream listing_out("test2.lst");
-        ofstream binary_out("test2.o", ios::binary);
-        try
+        // If errors found in first pass, log and exit
+        if (!comprehensive_error_log.empty())
         {
-            bool success = perform_second_pass(listing_out, binary_out, lines, lookup_table, warnings, unresolved_labels, errors);
-            if (!success)
+            throw runtime_error("Errors found during first pass");
+        }
+
+        // Second pass
+        second_pass(processed_lines, original_lines, label_lookup, comprehensive_error_log, warning_log, listing_output, unresolved_labels, binary_output);
+
+        // If errors found in second pass, log and exit
+        if (!comprehensive_error_log.empty())
+        {
+            throw runtime_error("Errors found during second pass");
+        }
+
+        // Log warnings if any
+        if (!warning_log.empty())
+        {
+            log_output << "\nWarnings:\n";
+            for (const auto &warn : warning_log)
             {
-                cout << "Second pass failed" << endl;
+                log_output << "Warning" << (warn.iber != -1 ? " at line " + to_string(warn.iber) : "")
+                           << ": " << warn.message << "\n";
+                cout << "Warning" << (warn.iber != -1 ? " at line " + to_string(warn.iber) : "")
+                     << ": " << warn.message << "\n";
             }
         }
-        catch (const std::exception &e)
-        {
-            cerr << "Exception occurred: " << e.what() << endl;
-        }
-        for (auto i : errors)
-        {
-            cout << i << endl;
-        }
+
+        cout << "\nAssembly completed successfully!\n";
     }
-    cout<<"Assembly process completed\n";
+    catch (const exception &e)
+    {
+        // Log all errors to log file
+        log_output << "\nErrors encountered during assembly:\n";
+        for (const auto &err : comprehensive_error_log)
+        {
+            log_output << "Error" << (err.iber != -1 ? " at line " + to_string(err.iber) : "") 
+                       << ": " << err.message << "\n";
+            
+            // Also print to console for immediate visibility
+            cerr << "Error" << (err.iber != -1 ? " at line " + to_string(err.iber) : "") 
+                 << ": " << err.message << "\n";
+        }
+
+        cout << "\nErrors found. See " << base_filename << ".log for details.\n";
+        return 1;
+    }
+
+    // Close all files
+    asm_input.close();
+    listing_output.close();
+    log_output.close();
+    binary_output.close();
+
     return 0;
 }
